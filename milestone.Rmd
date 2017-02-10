@@ -1,0 +1,111 @@
+---
+title: "Milestone"
+author: "Kathryn Harris"
+date: "9 February 2017"
+output: html_document
+---
+
+#```{r setup, include=FALSE}
+##knitr::opts_chunk$set(echo = TRUE)
+#```
+
+## R Markdown
+
+
+```{r libs, message=FALSE}
+library(tidytext)
+library(tm)
+library(stringr)
+library(SnowballC)
+library(RWeka)
+library(ggplot2)
+```
+
+## Inspecting the files
+
+The data comes from the .... and contains text from blogs, news and twitter.
+
+#```{r dir, echo=FALSE}
+#setwd("/Users/kathrynh/Documents/FurtherLearning/CourseProjects/capstone/final/en_US")
+#```
+
+```{r loading, cache = TRUE}
+text_t <- readLines("/Users/kathrynh/Documents/FurtherLearning/CourseProjects/capstone/final/en_US/en_US.twitter.txt")
+
+text_b <- readLines("/Users/kathrynh/Documents/FurtherLearning/CourseProjects/capstone/final/en_US/en_US.blogs.txt")
+
+text_n <-readLines("/Users/kathrynh/Documents/FurtherLearning/CourseProjects/capstone/final/en_US/en_US.news.txt")
+```
+
+The size of the files, number of lines and number of words can be found below.
+
+
+
+```{r sizes,cache=TRUE}
+sizes <- file.info(dir("/Users/kathrynh/Documents/FurtherLearning/CourseProjects/capstone/final/en_US/"))[1]
+sizes[,1]<-sizes[,1]/(1000000)
+sizes['num_lines'] = c(length(text_b),length(text_n),length(text_t)) 
+sizes['num_words'] = c(sum(str_count(text_b)),sum(str_count(text_n)),sum(str_count(text_t)))
+```
+
+
+## Sampling
+Tolook at the most frequent words, we do not need to use the full text as these files are very large so can instead take a sample from each, then put them back in to a document. I choose 1/% of each file to give a large enough sample but would be easy to handle and run quickly.
+
+```{r,cache=TRUE}
+#do sample of words
+selectSample <- 0.01
+sample_b <- sample(text_b, length(text_b)*selectSample)
+sample_n <- sample(text_n, length(text_n)*selectSample)
+sample_t <- sample(text_t, length(text_t)*selectSample)
+
+text_Fullsample <- c(sample_b,sample_n,sample_t)
+```
+
+## Cleaning
+
+The text is loaded into a Corpus and celaned to remove punctuation, white space, numbers and stop words (such as "and", "to" etc which are likely to be the most common but not the words we are going to be most interested in). The cleaning also converts the text into lower case so upper and lowercase version of the same words are not treated differently. 
+
+```{r docs, cache=TRUE}
+docs <- VCorpus(VectorSource(text_Fullsample))
+
+docs <- tm_map(docs, content_transformer(tolower)) 
+docs <- tm_map(docs, removePunctuation) 
+docs <- tm_map(docs, stripWhitespace) 
+docs <- tm_map(docs, removeNumbers) 
+docs <- tm_map(docs, removeWords, stopwords("english")) 
+docs <- tm_map(docs, PlainTextDocument)  
+
+```
+
+
+
+```{r matrix, cache=TRUE}
+dtm <- DocumentTermMatrix(docs)
+```
+
+
+```{r freqs}
+freq <- colSums(as.matrix(dtm))  
+freq2 <- freq[tail(order(freq),15)]
+wf <- data.frame(word=names(freq2), freq=freq2)
+
+```
+
+```{r plotFreq}
+p <- ggplot(wf, aes(x=reorder(word,freq), y=freq, fill=freq))    
+p <- p + geom_bar(stat="identity")   
+p <- p + theme(axis.text.x=element_text(angle=45, hjust=1))   
+p   
+```
+
+
+
+
+
+
+## Plan
+For the project, I will use the ngrams, ideally a 3- or 4-gram, to model the words prediction.
+
+The Shiny app will take a text input from a simple text box and outout the predicted word.
+
